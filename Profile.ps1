@@ -1,17 +1,17 @@
-<# 
-                      7#G~                  
-                    7BB7J#P~                
-                 .?BG!   .?#G!              
-                :B@J       .?BB7            
-             ::  :Y#P~        7BB?.         
-           ^Y#?    :J#G~        !GB?.       
-          !&@!       .?#G!        J@B:      
-       ~^  ^Y#5^       .7BB7    .PB?.  ~^   
-    .!GB7    :Y#5^        !GB7.  ^.    Y#5^ 
+<#
+                      7#G~
+                    7BB7J#P~
+                 .?BG!   .?#G!
+                :B@J       .?BB7
+             ::  :Y#P~        7BB?.
+           ^Y#?    :J#G~        !GB?.
+          !&@!       .?#G!        J@B:
+       ~^  ^Y#5^       .7BB7    .PB?.  ~^
+    .!GB7    :Y#5^        !GB7.  ^.    Y#5^
     7&&~       !@@G~       .P@#J.       J@B^
-     :J#G~   ~P#J^?#G!   .?#G~~P#Y:  .7BB7  
-       .?BG7P#J.   .7BB7J#P~    ^5#Y?BG!    
-         .?BJ.        7#G~        ^5B!      
+     :J#G~   ~P#J^?#G!   .?#G~~P#Y:  .7BB7
+       .?BG7P#J.   .7BB7J#P~    ^5#Y?BG!
+         .?BJ.        7#G~        ^5B!
 
     Author: Scott McKendry
     Description: PowersShell Profile containing aliases and functions to be loaded when a new PowerShell session is started.
@@ -36,13 +36,15 @@ Set-Alias -Name which -Value Show-Command
 Set-Alias -Name ll -Value Get-ChildItem
 Set-Alias -Name la -Value Get-ChildItem
 Set-Alias -Name l -Value Get-ChildItem
+Set-Alias -Name np -Value "C:\Program Files\Notepad++\notepad++.exe"
+Set-Alias -Name vcs -Value "C:\Program Files\Microsoft VS Code\Code.exe"
 
 # Putting the FUN in Functions 😎
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 function Find-WindotsRepository {
     <#
     .SYNOPSIS
-        Finds the local Windots repository. 
+        Finds the local Windots repository.
     #>
     [CmdletBinding()]
     param (
@@ -70,17 +72,16 @@ function Get-LatestProfile {
         Write-Verbose "Profile is up to date"
         Set-Location $currentWorkingDirectory
         return
-    }
-    else {
+    } else {
         Write-Verbose "Profile is out of date"
         Write-Host "Your PowerShell profile is out of date with the latest commit. To update it, run Update-Profile." -ForegroundColor Yellow
         Set-Location $currentWorkingDirectory
     }
-} 
+}
 function Start-AdminSession {
     <#
     .SYNOPSIS
-        Starts a new PowerShell session with elevated rights. Alias: su 
+        Starts a new PowerShell session with elevated rights. Alias: su
     #>
     Start-Process wt -Verb runAs -ArgumentList "pwsh.exe -NoExit -Command &{Set-Location $PWD}"
 }
@@ -88,7 +89,7 @@ function Start-AdminSession {
 function Update-Profile {
     <#
     .SYNOPSIS
-        Downloads the latest version of the PowerShell profile from Github and updates the PowerShell profile with the latest version. Alternative to completely restarting the action session. 
+        Downloads the latest version of the PowerShell profile from Github and updates the PowerShell profile with the latest version. Alternative to completely restarting the action session.
         Note that functions won't be updated, this requires a full restart. Alias: up
     #>
     Write-Verbose "Storing current working directory in memory"
@@ -112,7 +113,7 @@ function Find-File {
         [Parameter(ValueFromPipeline, Mandatory = $true, Position = 0)]
         [string]$SearchTerm
     )
-    
+
     Write-Verbose "Searching for '$SearchTerm' in current directory and subdirectories"
     $result = Get-ChildItem -Recurse -Filter "*$SearchTerm*" -ErrorAction SilentlyContinue
 
@@ -208,7 +209,7 @@ function Show-Command {
     Get-Command $Name | Select-Object -ExpandProperty Definition
 }
 function Get-OrCreateSecret {
-    <# 
+    <#
     .SYNOPSIS
         Gets secret from local vault or creates it if it doesn't exist. Requires SecretManagement and SecretStore modules and a local vault to be created.
         Install Modules with:
@@ -218,13 +219,13 @@ function Get-OrCreateSecret {
             Set-SecretStoreConfiguration -Authentication None -Confirm:$False
 
         https://devblogs.microsoft.com/powershell/secretmanagement-and-secretstore-are-generally-available/
-    
+
     .PARAMETER secretName
         Name of the secret to get or create. It's recommended to use the username or public key / client id as secret name to make it easier to identify the secret later.
-    
+
     .EXAMPLE
         $password = Get-OrCreateSecret -secretName $username
-    
+
     .EXAMPLE
         $clientSecret = Get-OrCreateSecret -secretName $clientId
 
@@ -248,8 +249,7 @@ function Get-OrCreateSecret {
             $secretValue = Read-Host -Prompt "Enter secret value for ($secretName)" -AsSecureString
             Set-Secret -Name $secretName -SecureStringSecret $secretValue
             $secretValue = Get-Secret $secretName -AsPlainText
-        }
-        else {
+        } else {
             throw "Secret not found and not created, exiting"
         }
     }
@@ -262,7 +262,10 @@ $ENV:WindotsLocalRepo = Find-WindotsRepository -ProfilePath $PSScriptRoot
 
 # Prompt Setup
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-Oh-My-Posh init pwsh --config "$env:POSH_THEMES_PATH/material.omp.json" | Invoke-Expression
-
+#Oh-My-Posh init pwsh --config "$env:POSH_THEMES_PATH/poshmon.omp.json" | Invoke-Expression
+#Oh-My-Posh init pwsh --config "$env:POSH_THEMES_PATH/gruvbox.omp.json" | Invoke-Expression
+#Oh-My-Posh init pwsh --config "$env:POSH_THEMES_PATH/rudolfs-dark.omp.json" | Invoke-Expression
+Oh-My-Posh init pwsh --config "$env:POSH_THEMES_PATH/agnoster.minimal.omp.json" | Invoke-Expression
+#Oh-My-Posh init pwsh --config "$env:POSH_THEMES_PATH/powerline.omp.json" | Invoke-Expression
 # Check for updates
 Get-LatestProfile
