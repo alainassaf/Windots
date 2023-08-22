@@ -284,18 +284,15 @@ Start-ThreadJob -ScriptBlock { Set-Location $ENV:WindotsLocalRepo && git fetch -
 
 # Prompt Setup
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-<<<<<<< HEAD
 #Oh-My-Posh init pwsh --config "$env:POSH_THEMES_PATH/poshmon.omp.json" | Invoke-Expression
 #Oh-My-Posh init pwsh --config "$env:POSH_THEMES_PATH/gruvbox.omp.json" | Invoke-Expression
 #Oh-My-Posh init pwsh --config "$env:POSH_THEMES_PATH/rudolfs-dark.omp.json" | Invoke-Expression
 Oh-My-Posh init pwsh --config "$env:POSH_THEMES_PATH/agnoster.minimal.omp.json" | Invoke-Expression
 #Oh-My-Posh init pwsh --config "$env:POSH_THEMES_PATH/powerline.omp.json" | Invoke-Expression
-=======
-oh-my-posh init pwsh --config "$env:POSH_THEMES_PATH/material.omp.json" | Invoke-Expression
+#oh-my-posh init pwsh --config "$env:POSH_THEMES_PATH/material.omp.json" | Invoke-Expression
 
 "$($stopwatch.ElapsedMilliseconds)ms`tPrompt initialised" | Out-File -FilePath $logPath -Append
 
->>>>>>> 43661a29196ef43878037c0df0052da54e7a7d4a
 # Check for updates
 Get-LatestProfile
 
