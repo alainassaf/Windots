@@ -39,6 +39,10 @@ Set-Alias -Name l -Value Get-ChildItem
 Set-Alias -Name np -Value "C:\Program Files\Notepad++\notepad++.exe"
 Set-Alias -Name vcs -Value "C:\Program Files\Microsoft VS Code\Code.exe"
 
+# PSReadLine Options
+Set-PSReadlineKeyHandler -Key Tab -Function MenuComplete
+Set-PSReadLineOption -PredictionSource History
+
 # Putting the FUN in Functions 😎
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 function Find-WindotsRepository {
@@ -72,7 +76,8 @@ function Get-LatestProfile {
         Write-Verbose "Profile is up to date"
         Set-Location $currentWorkingDirectory
         return
-    } else {
+    }
+    else {
         Write-Verbose "Profile is out of date"
         Write-Host "Your PowerShell profile is out of date with the latest commit. To update it, run Update-Profile." -ForegroundColor Yellow
         Set-Location $currentWorkingDirectory
@@ -249,11 +254,104 @@ function Get-OrCreateSecret {
             $secretValue = Read-Host -Prompt "Enter secret value for ($secretName)" -AsSecureString
             Set-Secret -Name $secretName -SecureStringSecret $secretValue
             $secretValue = Get-Secret $secretName -AsPlainText
-        } else {
+        }
+        else {
             throw "Secret not found and not created, exiting"
         }
     }
     return $secretValue
+}
+
+function Update-Modules {
+    param (
+        [switch]$AllowPrerelease,
+        [string]$Name = '*',
+        [switch]$WhatIf
+    )
+
+    # Test admin privileges without using -Requires RunAsAdministrator,
+    # which causes a nasty error message, if trying to load the function within a PS profile but without admin privileges
+    if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]"Administrator")) {
+        Write-Warning ("Function {0} needs admin privileges. Break now." -f $MyInvocation.MyCommand)
+        return
+    }
+
+    # Get all installed modules
+    Write-Host ("Retrieving all installed modules ...") -ForegroundColor Green
+    $CurrentModules = Get-InstalledModule -Name $Name -ErrorAction SilentlyContinue | Select-Object Name, Version | Sort-Object Name
+
+    if (-not $CurrentModules) {
+        Write-Host ("No modules found.") -ForegroundColor Gray
+        return
+    }
+    else {
+        $ModulesCount = $CurrentModules.Name.Count
+        $DigitsLength = $ModulesCount.ToString().Length
+        Write-Host ("{0} modules found." -f $ModulesCount) -ForegroundColor Gray
+    }
+
+    # Show status of AllowPrerelease Switch
+    ''
+    if ($AllowPrerelease) {
+        Write-Host ("Updating installed modules to the latest PreRelease version ...") -ForegroundColor Green
+    }
+    else {
+        Write-Host ("Updating installed modules to the latest Production version ...") -ForegroundColor Green
+    }
+
+    # Loop through the installed modules and update them if a newer version is available
+    $i = 0
+    foreach ($Module in $CurrentModules) {
+        $i++
+        $Counter = ("[{0,$DigitsLength}/{1,$DigitsLength}]" -f $i, $ModulesCount)
+        $CounterLength = $Counter.Length
+        Write-Host ('{0} Checking for updated version of module {1} ...' -f $Counter, $Module.Name) -ForegroundColor Green
+        try {
+            $latest = Find-Module $Module.Name -ErrorAction Stop
+            if ([version]$Module.Version -lt [version]$latest.version) {
+                Update-Module -Name $Module.Name -AllowPrerelease:$AllowPrerelease -AcceptLicense -Scope:AllUsers -Force:$True -ErrorAction Stop -WhatIf:$WhatIf.IsPresent
+            }
+        }
+        catch {
+            Write-Host ("{0$CounterLength} Error updating module {1}!" -f ' ', $Module.Name) -ForegroundColor Red
+        }
+
+        # Retrieve newest version number and remove old(er) version(s) if any
+        $AllVersions = Get-InstalledModule -Name $Module.Name -AllVersions | Sort-Object PublishedDate -Descending
+        $MostRecentVersion = $AllVersions[0].Version
+        if ($AllVersions.Count -gt 1 ) {
+            Foreach ($Version in $AllVersions) {
+                if ($Version.Version -ne $MostRecentVersion) {
+                    try {
+                        Write-Host ("{0,$CounterLength} Uninstalling previous version {1} of module {2} ..." -f ' ', $Version.Version, $Module.Name) -ForegroundColor Gray
+                        Uninstall-Module -Name $Module.Name -RequiredVersion $Version.Version -Force:$True -ErrorAction Stop -AllowPrerelease -WhatIf:$WhatIf.IsPresent
+                    }
+                    catch {
+                        Write-Warning ("{0,$CounterLength} Error uninstalling previous version {1} of module {2}!" -f ' ', $Version.Version, $Module.Name)
+                    }
+                }
+            }
+        }
+    }
+
+    # Get the new module versions for comparing them to to previous one if updated
+    $NewModules = Get-InstalledModule -Name $Name | Select-Object Name, Version | Sort-Object Name
+    if ($NewModules) {
+        ''
+        Write-Host ("List of updated modules:") -ForegroundColor Green
+        $NoUpdatesFound = $true
+        foreach ($Module in $NewModules) {
+            $CurrentVersion = $CurrentModules | Where-Object Name -EQ $Module.Name
+            if ($CurrentVersion.Version -notlike $Module.Version) {
+                $NoUpdatesFound = $false
+                Write-Host ("- Updated module {0} from version {1} to {2}" -f $Module.Name, $CurrentVersion.Version, $Module.Version) -ForegroundColor Green
+            }
+        }
+
+        if ($NoUpdatesFound) {
+            Write-Host ("No modules were updated.") -ForegroundColor Gray
+        }
+    }
 }
 
 # Custom Environment Variables
