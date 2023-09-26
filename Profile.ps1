@@ -37,15 +37,18 @@ Set-Alias -Name ff -Value Find-File
 Set-Alias -Name grep -Value Find-String
 Set-Alias -Name touch -Value New-File
 Set-Alias -Name df -Value Get-Volume
-# Set-Alias -Name sed -Value Set-String # Replaced by sed.exe
+Set-Alias -Name sed -Value Set-String
 Set-Alias -Name which -Value Show-Command
-Set-Alias -Name ll -Value Get-ChildItem
-Set-Alias -Name la -Value Get-ChildItem
-Set-Alias -Name l -Value Get-ChildItem
+Set-Alias -Name ls -Value Get-ChildItemPretty
+Set-Alias -Name ll -Value Get-ChildItemPretty
+Set-Alias -Name la -Value Get-ChildItemPretty
+Set-Alias -Name l -Value Get-ChildItemPretty
 Set-Alias -Name np -Value "C:\Program Files\Notepad++\notepad++.exe"
 Set-Alias -Name vcs -Value "C:\Program Files\Microsoft VS Code\Code.exe"
 
-"$($stopwatch.ElapsedMilliseconds)ms`tAliases set" | Out-File -FilePath $logPath -Append
+# PSReadLine Options
+Set-PSReadlineKeyHandler -Key Tab -Function MenuComplete
+Set-PSReadLineOption -PredictionSource History
 
 # Putting the FUN in Functions 😎
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -98,22 +101,16 @@ function Start-AdminSession {
 function Update-Profile {
     <#
     .SYNOPSIS
-        Downloads the latest version of the PowerShell profile from Github, updates the PowerShell profile with the latest version and reruns the setup script.
+        Downloads the latest version of the PowerShell profile from Github and updates the PowerShell profile with the latest version. Alternative to completely restarting the action session.
         Note that functions won't be updated, this requires a full restart. Alias: up
     #>
     Write-Verbose "Storing current working directory in memory"
     $currentWorkingDirectory = $PWD
-
     Write-Verbose "Updating local profile from Github repository"
     Set-Location $ENV:WindotsLocalRepo
     git pull | Out-Null
-
-    Write-Verbose "Rerunning setup script to capture any new dependencies."
-    Start-Process pwsh -Verb runAs -WorkingDirectory $PWD -ArgumentList "-Command .\Setup.ps1"
-
     Write-Verbose "Reverting to previous working directory"
     Set-Location $currentWorkingDirectory
-    
     Write-Verbose "Re-running profile script from $($PROFILE.CurrentUserAllHosts)"
     .$PROFILE.CurrentUserAllHosts
 }
@@ -192,7 +189,7 @@ function New-File {
 function Set-String {
     <#
     .SYNOPSIS
-        Replaces a string in a file. Alias: sed (deprecated, use sed.exe instead)
+        Replaces a string in a file. Alias: sed
     .EXAMPLE
         Set-String -File "C:\Users\Scott\Documents\test.txt" -Find "Hello" -Replace "Goodbye"
     .EXAMPLE
@@ -271,16 +268,101 @@ function Get-OrCreateSecret {
     return $secretValue
 }
 
-"$($stopwatch.ElapsedMilliseconds)ms`tFunctions loaded" | Out-File -FilePath $logPath -Append
+function Update-Modules {
+    param (
+        [switch]$AllowPrerelease,
+        [string]$Name = '*',
+        [switch]$WhatIf
+    )
+
+    # Test admin privileges without using -Requires RunAsAdministrator,
+    # which causes a nasty error message, if trying to load the function within a PS profile but without admin privileges
+    if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]"Administrator")) {
+        Write-Warning ("Function {0} needs admin privileges. Break now." -f $MyInvocation.MyCommand)
+        return
+    }
+
+    # Get all installed modules
+    Write-Host ("Retrieving all installed modules ...") -ForegroundColor Green
+    $CurrentModules = Get-InstalledModule -Name $Name -ErrorAction SilentlyContinue | Select-Object Name, Version | Sort-Object Name
+
+    if (-not $CurrentModules) {
+        Write-Host ("No modules found.") -ForegroundColor Gray
+        return
+    }
+    else {
+        $ModulesCount = $CurrentModules.Name.Count
+        $DigitsLength = $ModulesCount.ToString().Length
+        Write-Host ("{0} modules found." -f $ModulesCount) -ForegroundColor Gray
+    }
+
+    # Show status of AllowPrerelease Switch
+    ''
+    if ($AllowPrerelease) {
+        Write-Host ("Updating installed modules to the latest PreRelease version ...") -ForegroundColor Green
+    }
+    else {
+        Write-Host ("Updating installed modules to the latest Production version ...") -ForegroundColor Green
+    }
+
+    # Loop through the installed modules and update them if a newer version is available
+    $i = 0
+    foreach ($Module in $CurrentModules) {
+        $i++
+        $Counter = ("[{0,$DigitsLength}/{1,$DigitsLength}]" -f $i, $ModulesCount)
+        $CounterLength = $Counter.Length
+        Write-Host ('{0} Checking for updated version of module {1} ...' -f $Counter, $Module.Name) -ForegroundColor Green
+        try {
+            $latest = Find-Module $Module.Name -ErrorAction Stop
+            if ([version]$Module.Version -lt [version]$latest.version) {
+                Update-Module -Name $Module.Name -AllowPrerelease:$AllowPrerelease -AcceptLicense -Scope:AllUsers -Force:$True -ErrorAction Stop -WhatIf:$WhatIf.IsPresent
+            }
+        }
+        catch {
+            Write-Host ("{0$CounterLength} Error updating module {1}!" -f ' ', $Module.Name) -ForegroundColor Red
+        }
+
+        # Retrieve newest version number and remove old(er) version(s) if any
+        $AllVersions = Get-InstalledModule -Name $Module.Name -AllVersions | Sort-Object PublishedDate -Descending
+        $MostRecentVersion = $AllVersions[0].Version
+        if ($AllVersions.Count -gt 1 ) {
+            Foreach ($Version in $AllVersions) {
+                if ($Version.Version -ne $MostRecentVersion) {
+                    try {
+                        Write-Host ("{0,$CounterLength} Uninstalling previous version {1} of module {2} ..." -f ' ', $Version.Version, $Module.Name) -ForegroundColor Gray
+                        Uninstall-Module -Name $Module.Name -RequiredVersion $Version.Version -Force:$True -ErrorAction Stop -AllowPrerelease -WhatIf:$WhatIf.IsPresent
+                    }
+                    catch {
+                        Write-Warning ("{0,$CounterLength} Error uninstalling previous version {1} of module {2}!" -f ' ', $Version.Version, $Module.Name)
+                    }
+                }
+            }
+        }
+    }
+
+    # Get the new module versions for comparing them to to previous one if updated
+    $NewModules = Get-InstalledModule -Name $Name | Select-Object Name, Version | Sort-Object Name
+    if ($NewModules) {
+        ''
+        Write-Host ("List of updated modules:") -ForegroundColor Green
+        $NoUpdatesFound = $true
+        foreach ($Module in $NewModules) {
+            $CurrentVersion = $CurrentModules | Where-Object Name -EQ $Module.Name
+            if ($CurrentVersion.Version -notlike $Module.Version) {
+                $NoUpdatesFound = $false
+                Write-Host ("- Updated module {0} from version {1} to {2}" -f $Module.Name, $CurrentVersion.Version, $Module.Version) -ForegroundColor Green
+            }
+        }
+
+        if ($NoUpdatesFound) {
+            Write-Host ("No modules were updated.") -ForegroundColor Gray
+        }
+    }
+}
 
 # Custom Environment Variables
 $ENV:IsAdmin = (New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 $ENV:WindotsLocalRepo = Find-WindotsRepository -ProfilePath $PSScriptRoot
-
-# Check for Git updates while prompt is loading
-Start-ThreadJob -ScriptBlock { Set-Location $ENV:WindotsLocalRepo && git fetch --all } | Out-Null
-
-"$($stopwatch.ElapsedMilliseconds)ms`tGit fetch job started" | Out-File -FilePath $logPath -Append
 
 # Prompt Setup
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -295,7 +377,3 @@ Oh-My-Posh init pwsh --config "$env:POSH_THEMES_PATH/agnoster.minimal.omp.json" 
 
 # Check for updates
 Get-LatestProfile
-
-$stopwatch.Stop()
-
-"$($stopwatch.ElapsedMilliseconds)ms`tProfile load complete" | Out-File -FilePath $logPath -Append

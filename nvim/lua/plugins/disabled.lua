@@ -1,7 +1,7 @@
 -- Disabled Plugins
-local M = {
-  -- mini.pairs
-  { "echasnovski/mini.pairs", enabled = false }
+return {
+  { "echasnovski/mini.pairs",          enabled = false },
+  { "echasnovski/mini.ai",             enabled = false },
+  { "windwp/nvim-spectre",             enabled = false },
+  { "jose-elias-alvarez/null-ls.nvim", enabled = false },
 }
-
-return M
