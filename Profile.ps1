@@ -76,8 +76,7 @@ function Get-LatestProfile {
         Write-Verbose "Profile is up to date"
         Set-Location $currentWorkingDirectory
         return
-    }
-    else {
+    } else {
         Write-Verbose "Profile is out of date"
         Write-Host "Your PowerShell profile is out of date with the latest commit. To update it, run Update-Profile." -ForegroundColor Yellow
         Set-Location $currentWorkingDirectory
@@ -254,8 +253,7 @@ function Get-OrCreateSecret {
             $secretValue = Read-Host -Prompt "Enter secret value for ($secretName)" -AsSecureString
             Set-Secret -Name $secretName -SecureStringSecret $secretValue
             $secretValue = Get-Secret $secretName -AsPlainText
-        }
-        else {
+        } else {
             throw "Secret not found and not created, exiting"
         }
     }
@@ -283,8 +281,7 @@ function Update-Modules {
     if (-not $CurrentModules) {
         Write-Host ("No modules found.") -ForegroundColor Gray
         return
-    }
-    else {
+    } else {
         $ModulesCount = $CurrentModules.Name.Count
         $DigitsLength = $ModulesCount.ToString().Length
         Write-Host ("{0} modules found." -f $ModulesCount) -ForegroundColor Gray
@@ -294,8 +291,7 @@ function Update-Modules {
     ''
     if ($AllowPrerelease) {
         Write-Host ("Updating installed modules to the latest PreRelease version ...") -ForegroundColor Green
-    }
-    else {
+    } else {
         Write-Host ("Updating installed modules to the latest Production version ...") -ForegroundColor Green
     }
 
@@ -311,8 +307,7 @@ function Update-Modules {
             if ([version]$Module.Version -lt [version]$latest.version) {
                 Update-Module -Name $Module.Name -AllowPrerelease:$AllowPrerelease -AcceptLicense -Scope:AllUsers -Force:$True -ErrorAction Stop -WhatIf:$WhatIf.IsPresent
             }
-        }
-        catch {
+        } catch {
             Write-Host ("{0$CounterLength} Error updating module {1}!" -f ' ', $Module.Name) -ForegroundColor Red
         }
 
@@ -325,8 +320,7 @@ function Update-Modules {
                     try {
                         Write-Host ("{0,$CounterLength} Uninstalling previous version {1} of module {2} ..." -f ' ', $Version.Version, $Module.Name) -ForegroundColor Gray
                         Uninstall-Module -Name $Module.Name -RequiredVersion $Version.Version -Force:$True -ErrorAction Stop -AllowPrerelease -WhatIf:$WhatIf.IsPresent
-                    }
-                    catch {
+                    } catch {
                         Write-Warning ("{0,$CounterLength} Error uninstalling previous version {1} of module {2}!" -f ' ', $Version.Version, $Module.Name)
                     }
                 }
