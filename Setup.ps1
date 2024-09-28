@@ -6,12 +6,9 @@
 # Set working directory
 Set-Location $PSScriptRoot
 
-# Install dependencies - OMP, neovim, choco, mingw, ripgrep, fd
+# Install dependencies - OMP, choco, mingw, ripgrep, fd
 if (!(Get-Command "oh-my-posh" -ErrorAction SilentlyContinue)) {
     winget install -e -h --id=JanDeDobbeleer.oh-my-posh 
-}
-if (!(Get-Command "nvim" -ErrorAction SilentlyContinue)) {
-    winget install -e --id Neovim.Neovim
 }
 if (!(Get-Command "choco" -ErrorAction SilentlyContinue)) {
     winget install -e -h --id=Chocolatey.Chocolatey
@@ -19,23 +16,9 @@ if (!(Get-Command "choco" -ErrorAction SilentlyContinue)) {
 if (!(Get-Command "gcc" -ErrorAction SilentlyContinue)) {
     choco install -y mingw
 }
-if (!(Get-Command "rg" -ErrorAction SilentlyContinue)) {
-    choco install -y ripgrep
-}
-if (!(Get-Command "fd" -ErrorAction SilentlyContinue)) {
-    choco install -y fd
-}
-
-# Clone NvChad
-if (!(Test-Path $HOME\AppData\Local\nvim\lua\core)) {
-    git clone https://github.com/NvChad/NvChad $HOME\AppData\Local\nvim --depth 1
-}
 
 # Create Symbolic link to Profile.ps1 in PowerShell profile directory
 New-Item -ItemType SymbolicLink -Path $PROFILE.CurrentUserAllHosts -Target (Resolve-Path .\Profile.ps1) -Force
-
-# Create Symbolic link to custom nvim config directory
-New-Item -ItemType SymbolicLink -Path $HOME\AppData\Local\nvim\lua\custom -Target (Resolve-Path .\nvim\lua\custom) -Force
 
 # Install Terminal-Icons module
 if (!(Get-Module -Name Terminal-Icons -ErrorAction SilentlyContinue)) {
@@ -50,7 +33,7 @@ $fontFamilies = (New-Object System.Drawing.Text.InstalledFontCollection).Familie
 if ($fontFamilies -notcontains "CaskaydiaCove NF") {
     # Download and install CaskaydiaCove NF
     $webClient = New-Object System.Net.WebClient
-    $webClient.DownloadFile("https://github.com/ryanoasis/nerd-fonts/releases/download/v3.0.2/CascadiaCode.zip", ".\CascadiaCode.zip")
+    $webClient.DownloadFile("https://github.com/ryanoasis/nerd-fonts/releases/download/v3.2.1/CascadiaCode.zip", ".\CascadiaCode.zip")
 
     Expand-Archive -Path ".\CascadiaCode.zip" -DestinationPath ".\CascadiaCode" -Force
     $destination = (New-Object -ComObject Shell.Application).Namespace(0x14)
