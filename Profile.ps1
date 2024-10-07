@@ -15,7 +15,17 @@
 
     Author: Scott McKendry
     Description: PowersShell Profile containing aliases and functions to be loaded when a new PowerShell session is started.
+	Added items from Sean Wheeler's universal Profile
+	see https://github.com/sdwheeler/seanonit/blob/main/content/downloads/psprofiles/Microsoft.PowerShell_profile.ps1
 #>
+
+#region Important global settings
+[System.Net.ServicePointManager]::SecurityProtocol =
+    [System.Net.ServicePointManager]::SecurityProtocol -bor
+    [System.Net.SecurityProtocolType]::Tls12 -bor
+    [System.Net.SecurityProtocolType]::Tls13
+
+#endregion
 
 # Imports
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -38,10 +48,6 @@ Set-Alias -Name la -Value Get-ChildItem
 Set-Alias -Name l -Value Get-ChildItem
 Set-Alias -Name np -Value "C:\Program Files\Notepad++\notepad++.exe"
 Set-Alias -Name vcs -Value "C:\Program Files\Microsoft VS Code\Code.exe"
-
-# PSReadLine Options
-Set-PSReadlineKeyHandler -Key Tab -Function MenuComplete
-Set-PSReadLineOption -PredictionSource History
 
 # Putting the FUN in Functions 😎
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -348,6 +354,107 @@ function Update-Modules {
     }
 }
 
+
+if ($PSVersionTable.PSVersion -lt '6.0') {
+    Write-Verbose 'Setting up PowerShell 5.x environment...'
+    # The $Is* variables are not defined in PowerShell 5.1
+    $IsLinux = $IsMacOS = $IsCoreCLR = $false
+    $IsWindows = $true
+
+    # Fix the case of the PSReadLine module so that Update-Help works
+    Write-Verbose 'Reloading PSReadLine...'
+    Remove-Module PSReadLine
+    Import-Module PSReadLine
+
+    Set-PSReadLineOption -PredictionSource 'History'
+}
+
+if ($PSVersionTable.PSVersion -ge '7.2') {
+    Write-Verbose 'Setting up PowerShell 7.2+ environment...'
+	# PSReadLine Options
+	import-module PSReadLine
+	Sleep 3
+	Set-PSReadlineKeyHandler -Key Tab -Function MenuComplete
+	Set-PSReadLineOption -PredictionSource History
+    Set-PSReadLineOption -PredictionSource 'HistoryAndPlugin'
+    Import-Module CompletionPredictor # Requires PSSubsystemPluginModel experimental feature
+}
+
+
+#-------------------------------------------------------
+#region OS-specific initialization (all versions)
+#-------------------------------------------------------
+if ($IsWindows) {
+    # Create custom PSDrives
+    if (!(Test-Path HKCR:)) {
+        $null = New-PSDrive -Name HKCR -PSProvider Registry -Root HKEY_CLASSES_ROOT
+        $null = New-PSDrive -Name HKU -PSProvider Registry -Root HKEY_USERS
+    }
+
+    # Check for admin privileges
+    & {
+        $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+        $principal = [Security.Principal.WindowsPrincipal] $identity
+        $global:IsAdmin = $principal.IsInRole([Security.Principal.WindowsBuiltInRole] 'Administrator')
+    }
+
+    # Register the winget argument completer
+    Register-ArgumentCompleter -Native -CommandName winget -ScriptBlock {
+        param($wordToComplete, $commandAst, $cursorPosition)
+        [Console]::InputEncoding = [Console]::OutputEncoding = $OutputEncoding = [System.Text.Utf8Encoding]::new()
+        $Local:word = $wordToComplete.Replace('"', '""')
+        $Local:ast = $commandAst.ToString().Replace('"', '""')
+        winget complete --word="$Local:word" --commandline "$Local:ast" --position $cursorPosition |
+            ForEach-Object {
+                [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
+            }
+    }
+} elseif ($IsLinux) {
+    Import-Module -Name Microsoft.PowerShell.UnixTabCompletion
+    Import-PSUnixTabCompletion
+} elseif ($IsMacOS) {
+    Import-Module -Name Microsoft.PowerShell.UnixTabCompletion
+    Import-PSUnixTabCompletion
+}
+#endregion
+
+#-------------------------------------------------------
+#region PSReadLine settings
+#-------------------------------------------------------
+Write-Verbose 'Setting up PSReadLine...'
+## Add Dongbo's custom history handler to filter out:
+## - Commands with 3 or fewer characters
+## - Commands that start with a space
+## - Commands that end with a semicolon
+## - Start with a space or end with a semicolon if you want the command to be omitted from history
+##   - Useful for filtering out sensitive commands you don't want recorded in history
+$global:__defaultHistoryHandler = (Get-PSReadLineOption).AddToHistoryHandler
+Set-PSReadLineOption -AddToHistoryHandler {
+    param([string]$line)
+
+    $defaultResult = $global:__defaultHistoryHandler.Invoke($line)
+    if ($defaultResult -eq "MemoryAndFile") {
+        if ($line.Length -gt 3 -and $line[0] -ne ' ' -and $line[-1] -ne ';') {
+            return "MemoryAndFile"
+        } else {
+            return "MemoryOnly"
+        }
+    }
+    return $defaultResult
+}
+#-------------------------------------------------------
+#endregion
+
+$PSROptions = @{
+	Colors             = @{
+		Operator         = $PSStyle.Foreground.BrightMagenta
+		Parameter        = $PSStyle.Foreground.BrightMagenta
+		Selection        = $PSStyle.Foreground.BrightGreen + $PSStyle.Background.BrightBlack
+		InLinePrediction = $PSStyle.Background.BrightBlack
+       }
+    }
+Set-PSReadLineOption @PSROptions
+
 # Custom Environment Variables
 $ENV:IsAdmin = (New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 $ENV:WindotsLocalRepo = Find-WindotsRepository -ProfilePath $PSScriptRoot
@@ -361,3 +468,5 @@ Oh-My-Posh init pwsh --config "$env:POSH_THEMES_PATH/agnoster.minimal.omp.json" 
 #Oh-My-Posh init pwsh --config "$env:POSH_THEMES_PATH/powerline.omp.json" | Invoke-Expression
 # Check for updates
 Get-LatestProfile
+
+C:\Users\alain\OneDrive\Codevault\PoSH\show-gittip.ps1
