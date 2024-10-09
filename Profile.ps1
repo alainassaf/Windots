@@ -21,9 +21,9 @@
 
 #region Important global settings
 [System.Net.ServicePointManager]::SecurityProtocol =
-    [System.Net.ServicePointManager]::SecurityProtocol -bor
-    [System.Net.SecurityProtocolType]::Tls12 -bor
-    [System.Net.SecurityProtocolType]::Tls13
+[System.Net.ServicePointManager]::SecurityProtocol -bor
+[System.Net.SecurityProtocolType]::Tls12 -bor
+[System.Net.SecurityProtocolType]::Tls13
 
 #endregion
 
@@ -49,6 +49,7 @@ Set-Alias -Name l -Value Get-ChildItem
 Set-Alias -Name np -Value "C:\Program Files\Notepad++\notepad++.exe"
 Set-Alias -Name vcs -Value "C:\Program Files\Microsoft VS Code\Code.exe"
 
+#region functions
 # Putting the FUN in Functions 😎
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 function Find-WindotsRepository {
@@ -353,7 +354,7 @@ function Update-Modules {
         }
     }
 }
-
+#endregion
 
 if ($PSVersionTable.PSVersion -lt '6.0') {
     Write-Verbose 'Setting up PowerShell 5.x environment...'
@@ -371,11 +372,11 @@ if ($PSVersionTable.PSVersion -lt '6.0') {
 
 if ($PSVersionTable.PSVersion -ge '7.2') {
     Write-Verbose 'Setting up PowerShell 7.2+ environment...'
-	# PSReadLine Options
-	import-module PSReadLine
-	Sleep 3
-	Set-PSReadlineKeyHandler -Key Tab -Function MenuComplete
-	Set-PSReadLineOption -PredictionSource History
+    # PSReadLine Options
+    import-module PSReadLine
+    Sleep 3
+    Set-PSReadlineKeyHandler -Key Tab -Function MenuComplete
+    Set-PSReadLineOption -PredictionSource History
     Set-PSReadLineOption -PredictionSource 'HistoryAndPlugin'
     Import-Module CompletionPredictor # Requires PSSubsystemPluginModel experimental feature
 }
@@ -405,9 +406,9 @@ if ($IsWindows) {
         $Local:word = $wordToComplete.Replace('"', '""')
         $Local:ast = $commandAst.ToString().Replace('"', '""')
         winget complete --word="$Local:word" --commandline "$Local:ast" --position $cursorPosition |
-            ForEach-Object {
-                [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
-            }
+        ForEach-Object {
+            [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
+        }
     }
 } elseif ($IsLinux) {
     Import-Module -Name Microsoft.PowerShell.UnixTabCompletion
@@ -446,13 +447,13 @@ Set-PSReadLineOption -AddToHistoryHandler {
 #endregion
 
 $PSROptions = @{
-	Colors             = @{
-		Operator         = $PSStyle.Foreground.BrightMagenta
-		Parameter        = $PSStyle.Foreground.BrightMagenta
-		Selection        = $PSStyle.Foreground.BrightGreen + $PSStyle.Background.BrightBlack
-		InLinePrediction = $PSStyle.Background.BrightBlack
-       }
+    Colors = @{
+        Operator         = $PSStyle.Foreground.BrightMagenta
+        Parameter        = $PSStyle.Foreground.BrightMagenta
+        Selection        = $PSStyle.Foreground.BrightGreen + $PSStyle.Background.BrightBlack
+        InLinePrediction = $PSStyle.Background.BrightBlack
     }
+}
 Set-PSReadLineOption @PSROptions
 
 # Custom Environment Variables
